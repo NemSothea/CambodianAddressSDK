@@ -5,7 +5,10 @@ let package = Package(
     name: "CambodiaAddressSDK",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v18)
+        .iOS(.v18),
+        // macOS is supported as a host for `swift test` / CI and for headless
+        // (Core/Data/Search) consumers. The UI module guards UIKit with #if canImport(UIKit).
+        .macOS(.v14),
     ],
     products: [
         // Full SDK: models + data + search + UI + facade. Most consumers import this.
