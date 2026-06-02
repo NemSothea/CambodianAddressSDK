@@ -1,7 +1,29 @@
 {
-  "version": "0.0.0-placeholder",
-  "provinces": [],
-  "districts": [],
-  "communes": [],
-  "villages": []
+  "version": "2026.06-sample",
+  "provinces": [
+    { "code": "12", "km": "ភ្នំពេញ", "en": "Phnom Penh" },
+    { "code": "08", "km": "កណ្ដាល", "en": "Kandal" }
+  ],
+  "districts": [
+    { "code": "1201", "p": "12", "km": "ដូនពេញ", "en": "Doun Penh", "t": "khan" },
+    { "code": "1202", "p": "12", "km": "ចំការមន", "en": "Chamkar Mon", "t": "khan" },
+    { "code": "0808", "p": "08", "km": "តាខ្មៅ", "en": "Ta Khmau", "t": "municipality" },
+    { "code": "0801", "p": "08", "km": "កណ្ដាលស្ទឹង", "en": "Kandal Stueng", "t": "district" }
+  ],
+  "communes": [
+    { "code": "120101", "d": "1201", "km": "វត្តភ្នំ", "en": "Voat Phnum", "t": "sangkat" },
+    { "code": "120103", "d": "1201", "km": "ផ្សារថ្មីទី៣", "en": "Phsar Thmei Ti Bei", "t": "sangkat" },
+    { "code": "120201", "d": "1202", "km": "ទន្លេបាសាក់", "en": "Tonle Basak", "t": "sangkat" },
+    { "code": "080801", "d": "0808", "km": "តាខ្មៅ", "en": "Ta Khmau", "t": "sangkat" },
+    { "code": "080101", "d": "0801", "km": "អំពៅព្រៃ", "en": "Ampov Prey", "t": "commune" }
+  ],
+  "villages": [
+    { "code": "12010101", "c": "120101", "km": "ភូមិ១", "en": "Phum 1" },
+    { "code": "12010102", "c": "120101", "km": "ភូមិ២", "en": "Phum 2" },
+    { "code": "12010301", "c": "120103", "km": "ភូមិ១", "en": "Phum 1" },
+    { "code": "12020101", "c": "120201", "km": "ភូមិ១", "en": "Phum 1" },
+    { "code": "12020102", "c": "120201", "km": "ភូមិ២", "en": "Phum 2" },
+    { "code": "08080101", "c": "080801", "km": "ភូមិ១", "en": "Phum 1" },
+    { "code": "08010101", "c": "080101", "km": "ភូមិអំពៅព្រៃ", "en": "Phum Ampov Prey" }
+  ]
 }
