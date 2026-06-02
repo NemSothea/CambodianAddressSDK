@@ -1,10 +1,12 @@
 /// The four levels of Cambodia's administrative hierarchy, ordered from largest to smallest:
 /// Province → District → Commune/Sangkat → Village.
-public enum AdministrativeLevel: String, Codable, Sendable, CaseIterable, Comparable {
+public enum AdministrativeLevel: String, Codable, Sendable, CaseIterable, Comparable, Identifiable {
     case province
     case district
     case commune
     case village
+
+    public var id: String { rawValue }
 
     /// Number of digits in an NCDD code at this level (province 2 … village 8).
     public var codeLength: Int {
