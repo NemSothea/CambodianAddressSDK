@@ -16,3 +16,9 @@ DerivedData/
 # Editor
 *.swp
 .vscode/
+
+# Generated example app project (regenerate with `xcodegen generate`)
+ExampleApp/*.xcodeproj
+
+# DocC build output
+*.doccarchive
