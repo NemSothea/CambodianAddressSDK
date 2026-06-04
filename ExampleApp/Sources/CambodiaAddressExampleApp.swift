@@ -3,11 +3,14 @@ import CambodiaAddress
 
 @main
 struct CambodiaAddressExampleApp: App {
+    // One live facade (bundled offline data + search engine) shared by all tabs.
+    @State private var cambodia = CambodiaAddress.live()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                // Inject the live SDK (bundled offline data + search engine).
-                .cambodiaAddress(.live())
+            RootTabView(cambodia: cambodia)
+                // Injects the repository + language for every picker subtree.
+                .cambodiaAddress(cambodia)
         }
     }
 }

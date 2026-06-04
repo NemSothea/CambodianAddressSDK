@@ -47,3 +47,29 @@ jobs:
             -scheme CambodiaAddress \
             -destination 'generic/platform=iOS Simulator' \
             build
+
+  example-app:
+    name: Build ExampleApp (iOS Simulator)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        working-directory: ExampleApp
+        run: xcodegen generate
+
+      - name: Build app
+        working-directory: ExampleApp
+        run: |
+          xcodebuild \
+            -project CambodiaAddressExample.xcodeproj \
+            -scheme CambodiaAddressExample \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            build
