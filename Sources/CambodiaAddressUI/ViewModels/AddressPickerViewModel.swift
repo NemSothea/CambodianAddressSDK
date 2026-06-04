@@ -4,6 +4,12 @@ import CambodiaAddressCore
 
 /// Drives the address picker: owns the selection, the per-level option lists, search, and
 /// loading/error state. `@MainActor` (all UI state) and `@Observable` (SwiftUI observation).
+///
+/// Async results are committed only if no newer operation has superseded them: every
+/// selection-mutating call bumps ``selectionGeneration`` and every search bumps
+/// ``searchGeneration``, and an in-flight result is dropped once its captured generation is
+/// stale. This makes rapid taps / keystrokes race-free (latest input wins) even when the
+/// repository's awaited calls are slow or out of order.
 @MainActor
 @Observable
 public final class AddressPickerViewModel {
@@ -30,6 +36,14 @@ public final class AddressPickerViewModel {
     // MARK: Status
     public private(set) var isLoading = false
     public private(set) var errorMessage: String?
+
+    // MARK: Concurrency guards
+    /// Bumped by every selection-mutating call; stale cascade loads check it before committing.
+    private var selectionGeneration = 0
+    /// Bumped by every search (and by clear/apply); stale search results check it before committing.
+    private var searchGeneration = 0
+    /// Number of operations currently running through `run`; `isLoading` is `count > 0`.
+    private var activeOperations = 0
 
     public init(
         repository: any AddressRepository,
@@ -59,49 +73,78 @@ public final class AddressPickerViewModel {
 
     /// Load provinces, and re-hydrate child lists for any pre-seeded selection.
     public func load() async {
+        selectionGeneration &+= 1
+        let generation = selectionGeneration
         await run {
-            self.provinces = try await self.repository.provinces()
-            if let province = self.selection.province {
-                self.districts = try await self.repository.districts(inProvince: province.code)
-            }
-            if let district = self.selection.district {
-                self.communes = try await self.repository.communes(inDistrict: district.code)
-            }
-            if let commune = self.selection.commune {
-                self.villages = try await self.repository.villages(inCommune: commune.code)
-            }
+            let provinces = try await self.repository.provinces()
+            guard generation == self.selectionGeneration else { return }
+            self.provinces = provinces
+            try await self.rehydrateChildren(generation: generation)
         }
+    }
+
+    /// Adopt a selection pushed in from outside (e.g. the bound `$selection` changing in the host),
+    /// reloading the child lists to match. No-op if it already equals the current selection.
+    public func setSelection(_ newSelection: AddressSelection) async {
+        guard newSelection != selection else { return }
+        selectionGeneration &+= 1
+        searchGeneration &+= 1
+        let generation = selectionGeneration
+        selection = newSelection
+        districts = []; communes = []; villages = []
+        searchResults = []; searchQuery = ""
+        await run { try await self.rehydrateChildren(generation: generation) }
     }
 
     // MARK: - Selection (cascading)
 
     public func selectProvince(_ province: Province?) async {
+        selectionGeneration &+= 1
+        let generation = selectionGeneration
         selection.select(province: province)
         districts = []; communes = []; villages = []
         guard let province else { return }
-        await run { self.districts = try await self.repository.districts(inProvince: province.code) }
+        await run {
+            let result = try await self.repository.districts(inProvince: province.code)
+            guard generation == self.selectionGeneration else { return }
+            self.districts = result
+        }
     }
 
     public func selectDistrict(_ district: District?) async {
+        selectionGeneration &+= 1
+        let generation = selectionGeneration
         selection.select(district: district)
         communes = []; villages = []
         guard let district else { return }
-        await run { self.communes = try await self.repository.communes(inDistrict: district.code) }
+        await run {
+            let result = try await self.repository.communes(inDistrict: district.code)
+            guard generation == self.selectionGeneration else { return }
+            self.communes = result
+        }
     }
 
     public func selectCommune(_ commune: Commune?) async {
+        selectionGeneration &+= 1
+        let generation = selectionGeneration
         selection.select(commune: commune)
         villages = []
         guard let commune else { return }
-        await run { self.villages = try await self.repository.villages(inCommune: commune.code) }
+        await run {
+            let result = try await self.repository.villages(inCommune: commune.code)
+            guard generation == self.selectionGeneration else { return }
+            self.villages = result
+        }
     }
 
     public func selectVillage(_ village: Village?) {
+        selectionGeneration &+= 1
         selection.select(village: village)
     }
 
     /// Clear the entire selection (keeps the loaded province list).
     public func clear() {
+        selectionGeneration &+= 1
         selection.clear()
         districts = []; communes = []; villages = []
     }
@@ -154,6 +197,7 @@ public final class AddressPickerViewModel {
 
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
+            searchGeneration &+= 1   // discard any in-flight result that would arrive after clearing
             searchResults = []
             searchTask = nil
             return
@@ -170,40 +214,61 @@ public final class AddressPickerViewModel {
 
     /// Run a search immediately (no debounce). Used by the debounced task and by tests.
     func performSearch(_ query: String) async {
+        searchGeneration &+= 1
+        let generation = searchGeneration
         await run {
-            self.searchResults = try await self.repository.search(query, limit: self.searchLimit)
+            let results = try await self.repository.search(query, limit: self.searchLimit)
+            guard generation == self.searchGeneration else { return }
+            self.searchResults = results
         }
     }
 
     /// Apply a search result, adopting its full path and reloading child lists for drill-down.
     public func apply(_ result: AddressSearchResult) async {
         searchTask?.cancel()
+        selectionGeneration &+= 1
+        searchGeneration &+= 1
+        let generation = selectionGeneration
         searchResults = []
         searchQuery = ""
         selection = result.path
-        await run {
-            if let province = self.selection.province {
-                self.districts = try await self.repository.districts(inProvince: province.code)
-            }
-            if let district = self.selection.district {
-                self.communes = try await self.repository.communes(inDistrict: district.code)
-            }
-            if let commune = self.selection.commune {
-                self.villages = try await self.repository.villages(inCommune: commune.code)
-            }
-        }
+        await run { try await self.rehydrateChildren(generation: generation) }
     }
 
     // MARK: - Helpers
 
+    /// Reload district/commune/village lists to match the current `selection`, bailing if a
+    /// newer selection operation (matching `generation`) has superseded this one.
+    private func rehydrateChildren(generation: Int) async throws {
+        if let province = selection.province {
+            let result = try await repository.districts(inProvince: province.code)
+            guard generation == selectionGeneration else { return }
+            districts = result
+        }
+        if let district = selection.district {
+            let result = try await repository.communes(inDistrict: district.code)
+            guard generation == selectionGeneration else { return }
+            communes = result
+        }
+        if let commune = selection.commune {
+            let result = try await repository.villages(inCommune: commune.code)
+            guard generation == selectionGeneration else { return }
+            villages = result
+        }
+    }
+
     private func run(_ operation: @MainActor () async throws -> Void) async {
+        activeOperations += 1
         isLoading = true
         errorMessage = nil
+        defer {
+            activeOperations -= 1
+            if activeOperations == 0 { isLoading = false }
+        }
         do {
             try await operation()
         } catch {
             errorMessage = (error as? AddressError)?.errorDescription ?? error.localizedDescription
         }
-        isLoading = false
     }
 }

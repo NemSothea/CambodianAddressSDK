@@ -6,13 +6,20 @@ import CambodiaAddressCore
 final class FakeAddressRepository: AddressRepository, @unchecked Sendable {
     private let lock = NSLock()
     private var _searchCount = 0
+    private var _districtsCount = 0
     private var _lastSearchQuery: String?
 
     var searchCount: Int { lock.withLock { _searchCount } }
+    var districtsCount: Int { lock.withLock { _districtsCount } }
     var lastSearchQuery: String? { lock.withLock { _lastSearchQuery } }
 
     /// When non-nil, every method throws this.
     var error: AddressError?
+
+    /// Per-input artificial latency, so tests can deterministically interleave a slow call with a
+    /// fast one and prove stale results are discarded. Set before exercising the model.
+    var districtsDelayByProvince: [String: Duration] = [:]
+    var searchDelayByQuery: [String: Duration] = [:]
 
     // Fixed two-province dataset.
     static let phnomPenh = Province(code: "12", name: LocalizedName(km: "ភ្នំពេញ", en: "Phnom Penh"))
@@ -27,6 +34,8 @@ final class FakeAddressRepository: AddressRepository, @unchecked Sendable {
     }
 
     func districts(inProvince provinceCode: String) async throws -> [District] {
+        lock.withLock { _districtsCount += 1 }
+        if let delay = districtsDelayByProvince[provinceCode] { try? await Task.sleep(for: delay) }
         try throwIfNeeded()
         return provinceCode == "12" ? [Self.dounPenh] : []
     }
@@ -49,9 +58,11 @@ final class FakeAddressRepository: AddressRepository, @unchecked Sendable {
 
     func search(_ query: String, levels: Set<AdministrativeLevel>, limit: Int) async throws -> [AddressSearchResult] {
         lock.withLock { _searchCount += 1; _lastSearchQuery = query }
+        if let delay = searchDelayByQuery[query] { try? await Task.sleep(for: delay) }
         try throwIfNeeded()
+        // Echo the query into the result name so a test can tell which query produced the results.
         return [
-            AddressSearchResult(id: Self.village.code, level: .village, name: Self.village.name, path: fullSelection, score: 1.0)
+            AddressSearchResult(id: Self.village.code, level: .village, name: LocalizedName(km: query, en: query), path: fullSelection, score: 1.0)
         ]
     }
 
