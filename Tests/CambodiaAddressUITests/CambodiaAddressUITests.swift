@@ -127,6 +127,80 @@ import CambodiaAddressCore
         #expect(model.communes.map(\.code) == ["120101"])
     }
 
+    // MARK: Concurrency — stale results are discarded (generation guards)
+
+    @Test func staleProvinceLoadDoesNotClobberNewerSelection() async {
+        let repo = FakeAddressRepository()
+        repo.districtsDelayByProvince["12"] = .milliseconds(150)   // Phnom Penh load is slow
+        let model = makeModel(repo)
+        await model.load()
+
+        async let slow: Void = model.selectProvince(FakeAddressRepository.phnomPenh)
+        await Task.yield()                                          // let the slow load start & suspend
+        await model.selectProvince(FakeAddressRepository.kandal)    // newer, fast (Kandal has no districts)
+        await slow                                                  // slow Phnom Penh load now resolves
+
+        // Latest selection wins; the stale ["1201"] result must have been dropped.
+        #expect(model.selection.province?.code == "08")
+        #expect(model.districts.isEmpty)
+    }
+
+    @Test func staleSearchResultDoesNotClobberNewerQuery() async {
+        let repo = FakeAddressRepository()
+        repo.searchDelayByQuery["slow"] = .milliseconds(150)
+        let model = makeModel(repo)
+
+        async let slow: Void = model.performSearch("slow")
+        await Task.yield()
+        await model.performSearch("fast")
+        await slow
+
+        #expect(model.searchResults.first?.name.en == "fast")
+        #expect(model.searchResults.count == 1)
+    }
+
+    @Test func loadingStaysTrueUntilAllOverlappingOperationsFinish() async {
+        let repo = FakeAddressRepository()
+        repo.districtsDelayByProvince["12"] = .milliseconds(150)
+        let model = makeModel(repo)
+        await model.load()
+
+        async let slow: Void = model.selectProvince(FakeAddressRepository.phnomPenh)
+        await Task.yield()
+        await model.selectProvince(FakeAddressRepository.kandal)    // fast op finishes first
+
+        #expect(model.isLoading)                                    // slow op still in flight
+        await slow
+        #expect(!model.isLoading)
+    }
+
+    // MARK: External (inbound) selection binding
+
+    @Test func setSelectionAdoptsExternalSelectionAndRehydrates() async {
+        let repo = FakeAddressRepository()
+        let model = makeModel(repo)
+        await model.load()
+
+        await model.setSelection(repo.fullSelection)
+        #expect(model.selection.isComplete)
+        #expect(model.districts.map(\.code) == ["1201"])
+        #expect(model.communes.map(\.code) == ["120101"])
+        #expect(model.villages.map(\.code) == ["12010101"])
+    }
+
+    @Test func setSelectionIsANoOpWhenUnchanged() async {
+        let repo = FakeAddressRepository()
+        let model = AddressPickerViewModel(
+            repository: repo, language: .english,
+            initialSelection: repo.fullSelection, debounce: .milliseconds(20)
+        )
+        await model.load()                       // rehydrates once
+        let districtsCallsAfterLoad = repo.districtsCount
+
+        await model.setSelection(repo.fullSelection)   // identical → must not refetch
+        #expect(repo.districtsCount == districtsCallsAfterLoad)
+    }
+
     // MARK: Errors
 
     @Test func loadFailureSurfacesErrorMessage() async {

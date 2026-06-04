@@ -70,6 +70,12 @@ public struct CambodiaAddressPicker: View {
         .onChange(of: model.selection) { _, newValue in
             selection = newValue
         }
+        .onChange(of: selection) { _, newValue in
+            // Host pushed a new selection into the binding (reset, restored draft, etc.).
+            // Adopt it; the equality guard in setSelection ignores our own outbound echo.
+            guard newValue != model.selection else { return }
+            Task { await model.setSelection(newValue) }
+        }
         .sheet(item: $activeLevel) { level in
             LevelSelectionList(
                 title: model.strings.label(for: level),
