@@ -24,15 +24,13 @@ public struct BundledJSONDataSource: AddressDataSource {
         guard let url = bundle.url(forResource: resourceName, withExtension: "json") else {
             throw AddressError.resourceNotFound("\(resourceName).json")
         }
+        let data: Data
         do {
-            let data = try Data(contentsOf: url)
-            let wire = try JSONDecoder().decode(WireDataset.self, from: data)
-            return wire.toDomain()
-        } catch let error as AddressError {
-            throw error
+            data = try Data(contentsOf: url)
         } catch {
             throw AddressError.decodingFailed(String(describing: error))
         }
+        return try DatasetDecoding.decode(data)
     }
 
     public var version: DatasetVersion {
