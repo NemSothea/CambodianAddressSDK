@@ -6,11 +6,16 @@ import CambodiaAddressCore
 // MARK: - Bundled JSON
 
 @Suite struct BundledJSONDataSourceTests {
-    @Test func decodesBundledSample() async throws {
+    @Test func decodesBundledDataset() async throws {
+        // The bundled file is the full NCDD dataset (sourced via pumi). Assert sane lower
+        // bounds rather than exact counts, so a dataset refresh doesn't break the test.
         let dataset = try await BundledJSONDataSource().load()
-        #expect(!dataset.provinces.isEmpty)
-        #expect(!dataset.villages.isEmpty)
-        #expect(dataset.version.rawValue.contains("sample"))
+        #expect(dataset.provinces.count >= 24)      // Cambodia has 25 provinces incl. the capital
+        #expect(dataset.districts.count >= 190)
+        #expect(dataset.communes.count >= 1500)
+        #expect(dataset.villages.count >= 13_000)
+        #expect(!dataset.version.rawValue.isEmpty)
+        #expect(dataset.provinces.contains { $0.name.en == "Phnom Penh" && $0.code == "12" })
     }
 
     @Test func bundledLinkageIsConsistent() async throws {

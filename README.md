@@ -124,9 +124,10 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full design and [`BUILD_PLAN.
 
 ## Data
 
-The SDK ships with a small **sample** dataset so it works out of the box. To use the full
-~14k-village dataset, replace `Sources/CambodiaAddressData/Resources/cambodia_address.json`
-(same schema) — no code changes required. The format:
+The SDK ships with the **full NCDD dataset** — 25 provinces, 210 districts, 1,652
+communes/sangkats, and **14,578 villages** — bundled offline (~1.3 MB). To swap in an updated
+gazetteer, replace `Sources/CambodiaAddressData/Resources/cambodia_address.json` (same schema)
+— no code changes required. The format:
 
 ```jsonc
 {
@@ -156,6 +157,14 @@ A runnable demo lives in [`ExampleApp/`](./ExampleApp). See its [README](./Examp
 - **v3** GPS → nearest commune, postal codes, API sync (`RemoteAddressDataSource`)
 - **v4** Map integration, reverse geocoding, validation
 
+## Acknowledgements
+
+The bundled administrative dataset is derived from [**pumi**](https://github.com/dwilkie/pumi)
+(MIT licensed), which compiles geodata from the **NCDD** (National Committee for Sub-National
+Democratic Development) gazetteer — <http://db.ncdd.gov.kh/gazetteer>. Khmer names, romanized
+names, and NCDD codes originate there. Thanks to those projects for maintaining open Cambodian
+geodata.
+
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT — see [LICENSE](./LICENSE). The bundled data derives from pumi (MIT) / NCDD; see Acknowledgements.
