@@ -44,6 +44,7 @@ public struct CambodiaAddress: Sendable {
         case .bundled:               BundledJSONDataSource()
         case .inMemory(let dataset): InMemoryDataSource(dataset)
         case .remote(let url):       RemoteAddressDataSource(endpoint: url)
+        case .synced(let url):       CachingDataSource(remote: RemoteAddressDataSource(endpoint: url))
         }
     }
 

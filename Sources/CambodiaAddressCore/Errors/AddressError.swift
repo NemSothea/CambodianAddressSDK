@@ -12,6 +12,15 @@ public enum AddressError: Error, Sendable, Equatable {
     case notFound(code: String)
     /// A feature stub that is reserved for a future version (e.g. remote sync).
     case notImplemented
+    /// A remote endpoint used a non-HTTPS scheme (rejected before any request is made).
+    /// Associated value is the offending URL string.
+    case insecureEndpoint(String)
+    /// A remote sync request failed at the transport layer. Associated value is a diagnostic message.
+    case network(String)
+    /// A remote response had a non-success HTTP status. Associated value is the status code.
+    case invalidResponse(statusCode: Int)
+    /// A remote payload exceeded the configured maximum size and was rejected (DoS guard).
+    case payloadTooLarge
 }
 
 extension AddressError: LocalizedError {
@@ -27,6 +36,14 @@ extension AddressError: LocalizedError {
             "No administrative unit found for code \"\(code)\"."
         case .notImplemented:
             "This feature is not implemented in the current version."
+        case .insecureEndpoint(let url):
+            "Remote address endpoint must use HTTPS: \"\(url)\"."
+        case .network(let message):
+            "Network error while syncing the address dataset: \(message)"
+        case .invalidResponse(let statusCode):
+            "Remote address endpoint returned HTTP status \(statusCode)."
+        case .payloadTooLarge:
+            "The remote address dataset exceeded the maximum allowed size."
         }
     }
 }

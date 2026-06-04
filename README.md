@@ -141,6 +141,29 @@ gazetteer, replace `Sources/CambodiaAddressData/Resources/cambodia_address.json`
 
 Codes follow the NCDD convention (province 2 digits → village 8 digits); a child's code is prefixed by its parent's.
 
+### Remote sync (v3)
+
+Keep the dataset fresh from your own HTTPS endpoint (serving the same wire format) without ever
+going offline. `.synced` is offline-first: it serves the freshest snapshot already on the device
+(cached download, or the bundled dataset) and refreshes from the network in the background, so the
+update lands on the next launch.
+
+```swift
+let cambodia = CambodiaAddress.live(.init(dataSource: .synced(myDatasetURL)))
+```
+
+The remote fetch enforces a security contract on untrusted input: **HTTPS-only**, a configurable
+**response size cap**, and HTTP-status + decode validation. For full control, build the source
+directly:
+
+```swift
+let remote = RemoteAddressDataSource(
+    endpoint: myDatasetURL,
+    configuration: .init(maximumResponseBytes: 16 * 1024 * 1024)
+)
+let source = CachingDataSource(remote: remote)   // falls back to the bundled dataset
+```
+
 ## Example app
 
 A runnable demo lives in [`ExampleApp/`](./ExampleApp). See its [README](./ExampleApp/README.md) to generate and run it.
@@ -154,7 +177,7 @@ A runnable demo lives in [`ExampleApp/`](./ExampleApp). See its [README](./Examp
 
 - **v1** ✅ Province/District/Commune/Village, offline data, search, SwiftUI + UIKit
 - **v2** Address formatting refinements, more locales
-- **v3** GPS → nearest commune, postal codes, API sync (`RemoteAddressDataSource`)
+- **v3** API sync ✅ (`RemoteAddressDataSource` + `CachingDataSource`, offline-first) · GPS → nearest commune & postal codes (pending geodata)
 - **v4** Map integration, reverse geocoding, validation
 
 ## Acknowledgements

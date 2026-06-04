@@ -10,8 +10,12 @@ public struct AddressConfiguration: Sendable {
         case bundled
         /// A caller-supplied in-memory dataset.
         case inMemory(AddressDataset)
-        /// A remote endpoint (v3 — currently throws `notImplemented` on load).
+        /// A remote HTTPS endpoint serving the wire-format dataset (v3 API sync). No offline
+        /// fallback — prefer `.synced` for production.
         case remote(URL)
+        /// Offline-first sync: serve the freshest of {cached download, bundled dataset} and
+        /// refresh from `url` in the background. Recommended for production remote use.
+        case synced(URL)
     }
 
     /// Language for place names and UI chrome.
