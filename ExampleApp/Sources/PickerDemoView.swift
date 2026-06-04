@@ -1,9 +1,11 @@
 import SwiftUI
 import CambodiaAddress
 
-struct ContentView: View {
+/// Tab 1 — the drop-in cascading picker bound to an `AddressSelection`,
+/// plus the standalone `AddressPickerView` presented as a sheet.
+struct PickerDemoView: View {
+    @Binding var language: AddressLanguage
     @State private var address = AddressSelection()
-    @State private var language: AddressLanguage = .english
     @State private var showingStandalone = false
 
     var body: some View {
@@ -37,7 +39,6 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("Cambodia Address")
-            .addressLanguage(language)
             .sheet(isPresented: $showingStandalone) {
                 AddressPickerView(initialSelection: address) { selected in
                     address = selected
@@ -50,6 +51,6 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    PickerDemoView(language: .constant(.english))
         .cambodiaAddress(.live())
 }

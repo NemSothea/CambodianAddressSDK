@@ -214,6 +214,31 @@ private struct FailingDataSource: AddressDataSource {
     }
 }
 
+// MARK: - Wire format: additional locales
+
+@Suite struct WireLocaleTests {
+    @Test func decodesAdditionalLocalesFromWire() throws {
+        let json = Data(#"""
+        {"version":"x",
+         "provinces":[{"code":"12","km":"ភ្នំពេញ","en":"Phnom Penh","i18n":{"fr":"Phnom Penh","zh":"金边"}}],
+         "districts":[],"communes":[],"villages":[]}
+        """#.utf8)
+        let dataset = try DatasetDecoding.decode(json)
+        let name = dataset.provinces[0].name
+        #expect(name.resolved(for: .locale("zh")) == "金边")
+        #expect(name.additional["fr"] == "Phnom Penh")
+    }
+
+    @Test func wireWithoutI18nStillDecodes() throws {
+        let json = Data(#"""
+        {"version":"x","provinces":[{"code":"12","km":"ភ្នំពេញ","en":"Phnom Penh"}],
+         "districts":[],"communes":[],"villages":[]}
+        """#.utf8)
+        let dataset = try DatasetDecoding.decode(json)
+        #expect(dataset.provinces[0].name.additional.isEmpty)
+    }
+}
+
 // MARK: - DatasetCache
 
 @Suite struct DatasetCacheTests {

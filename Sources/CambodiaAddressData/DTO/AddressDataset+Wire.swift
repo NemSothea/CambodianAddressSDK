@@ -17,6 +17,8 @@ struct WireProvince: Decodable {
     let code: String
     let km: String
     let en: String
+    /// Optional extra locales beyond km/en, keyed by BCP-47 code.
+    let i18n: [String: String]?
 }
 
 struct WireDistrict: Decodable {
@@ -27,6 +29,8 @@ struct WireDistrict: Decodable {
     let en: String
     /// District type raw value; defaults to `.district` when absent.
     let t: String?
+    /// Optional extra locales beyond km/en, keyed by BCP-47 code.
+    let i18n: [String: String]?
 }
 
 struct WireCommune: Decodable {
@@ -37,6 +41,8 @@ struct WireCommune: Decodable {
     let en: String
     /// Commune type raw value; defaults to `.commune` when absent.
     let t: String?
+    /// Optional extra locales beyond km/en, keyed by BCP-47 code.
+    let i18n: [String: String]?
 }
 
 struct WireVillage: Decodable {
@@ -45,6 +51,8 @@ struct WireVillage: Decodable {
     let c: String
     let km: String
     let en: String
+    /// Optional extra locales beyond km/en, keyed by BCP-47 code.
+    let i18n: [String: String]?
 }
 
 extension WireDataset {
@@ -53,13 +61,13 @@ extension WireDataset {
         AddressDataset(
             version: DatasetVersion(version),
             provinces: provinces.map {
-                Province(code: $0.code, name: LocalizedName(km: $0.km, en: $0.en))
+                Province(code: $0.code, name: LocalizedName(km: $0.km, en: $0.en, additional: $0.i18n ?? [:]))
             },
             districts: districts.map {
                 District(
                     code: $0.code,
                     provinceCode: $0.p,
-                    name: LocalizedName(km: $0.km, en: $0.en),
+                    name: LocalizedName(km: $0.km, en: $0.en, additional: $0.i18n ?? [:]),
                     type: $0.t.flatMap(DistrictType.init(rawValue:)) ?? .district
                 )
             },
@@ -67,12 +75,12 @@ extension WireDataset {
                 Commune(
                     code: $0.code,
                     districtCode: $0.d,
-                    name: LocalizedName(km: $0.km, en: $0.en),
+                    name: LocalizedName(km: $0.km, en: $0.en, additional: $0.i18n ?? [:]),
                     type: $0.t.flatMap(CommuneType.init(rawValue:)) ?? .commune
                 )
             },
             villages: villages.map {
-                Village(code: $0.code, communeCode: $0.c, name: LocalizedName(km: $0.km, en: $0.en))
+                Village(code: $0.code, communeCode: $0.c, name: LocalizedName(km: $0.km, en: $0.en, additional: $0.i18n ?? [:]))
             }
         )
     }
