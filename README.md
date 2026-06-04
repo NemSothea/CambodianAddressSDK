@@ -25,11 +25,11 @@ CambodiaAddressPicker(selection: $address)
 - 🗺️ Full 4-level hierarchy: Province, District, Commune/Sangkat, Village
 - 📴 **Offline-first** — bundled dataset, works in airplane mode
 - 🔎 Fast offline **search** (Khmer + English, prefix + typo-tolerant fuzzy)
-- 🇰🇭 Bilingual place names (Khmer/English) carried in the data
+- 🇰🇭 Bilingual place names (Khmer/English) in the data — plus arbitrary extra locales with fallback
 - 🧩 SwiftUI **and** UIKit components
 - 🏗️ Clean modular architecture (Core / Data / Search / UI), MVVM, Swift 6 concurrency
-- ✅ 85 unit + integration tests, no third-party dependencies
-- 🔌 Future-proof: API-sync seam (`RemoteAddressDataSource`) ready for v3
+- ✅ 131 unit + integration tests, no third-party dependencies
+- 🔄 Offline-first API sync — refresh the dataset from your own HTTPS endpoint (`.synced`)
 
 ## Installation
 
