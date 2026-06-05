@@ -127,6 +127,20 @@ import CambodiaAddressCore
         #expect(try await engine.search("doun", levels: levels, limit: 0).isEmpty)
     }
 
+    @Test func brokenChainVillageExcludedFromResults() async throws {
+        // A village whose commune is absent must not appear in results — it would be
+        // unresolvable: AddressStore.selection(forVillageCode:) throws on the same broken chain.
+        let broken = AddressDataset(
+            version: "broken",
+            provinces: [Province(code: "12", name: LocalizedName(km: "ភ្នំពេញ", en: "Phnom Penh"))],
+            districts: [District(code: "1201", provinceCode: "12", name: LocalizedName(km: "ដូន", en: "Doun"), type: .district)],
+            communes: [],   // commune "120101" intentionally absent
+            villages: [Village(code: "12010101", communeCode: "120101", name: LocalizedName(km: "ភូមិ", en: "Ghost Village"))]
+        )
+        let results = try await AddressSearchEngine(dataset: broken).search("Ghost", levels: levels, limit: 10)
+        #expect(results.isEmpty)
+    }
+
     @Test func exactOutranksFuzzy() async throws {
         // Exact "chamkar" should rank above any fuzzy-only neighbor.
         let results = try await engine.search("chamkar", levels: levels, limit: 10)

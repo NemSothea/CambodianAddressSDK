@@ -55,14 +55,16 @@ actor AddressStore {
         }
         // Require a complete, unbroken parent chain. Missing parents indicate a corrupt/custom
         // dataset; returning a partial selection would silently mislead callers.
+        // Always throw notFound(code: villageCode) — the originally-requested code — so callers
+        // that inspect the associated code to identify what was missing get a stable answer.
         guard let commune = index.communesByCode[village.communeCode] else {
-            throw AddressError.notFound(code: village.communeCode)
+            throw AddressError.notFound(code: villageCode)
         }
         guard let district = index.districtsByCode[commune.districtCode] else {
-            throw AddressError.notFound(code: commune.districtCode)
+            throw AddressError.notFound(code: villageCode)
         }
         guard let province = index.provincesByCode[district.provinceCode] else {
-            throw AddressError.notFound(code: district.provinceCode)
+            throw AddressError.notFound(code: villageCode)
         }
         return AddressSelection(province: province, district: district, commune: commune, village: village)
     }

@@ -125,6 +125,23 @@ import CambodiaAddressCore
         }
     }
 
+    @Test func selectionThrowsOnBrokenChain() async {
+        // Village "12010101" references commune "120101" which is absent from this dataset.
+        // The thrown error must carry the REQUESTED village code — not the missing parent's
+        // code — so callers can reliably match the error to the code they queried.
+        let brokenDataset = AddressDataset(
+            version: "test",
+            provinces: [Province(code: "12", name: LocalizedName(km: "ភ", en: "P"))],
+            districts: [District(code: "1201", provinceCode: "12", name: LocalizedName(km: "ដ", en: "D"), type: .district)],
+            communes: [],
+            villages: [Village(code: "12010101", communeCode: "120101", name: LocalizedName(km: "ភ", en: "V"))]
+        )
+        let repo = DefaultAddressRepository(dataSource: InMemoryDataSource(brokenDataset))
+        await #expect(throws: AddressError.notFound(code: "12010101")) {
+            try await repo.selection(forVillageCode: "12010101")
+        }
+    }
+
     @Test func searchThrowsUntilEngineWired() async {
         await #expect(throws: AddressError.notImplemented) {
             try await DataFixtures.repository().search("phnom", limit: 5)

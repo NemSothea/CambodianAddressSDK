@@ -74,6 +74,31 @@ private struct FailingDataSource: AddressDataSource {
     var version: DatasetVersion { get async throws { throw AddressError.network("offline") } }
 }
 
+/// Wraps a data source and records whether load() or version was called.
+private final class InspectingDataSource: AddressDataSource, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _loadCalled = 0
+    private var _versionCalled = 0
+    private let inner: any AddressDataSource
+
+    init(_ inner: any AddressDataSource) { self.inner = inner }
+
+    var loadCalled: Int { lock.withLock { _loadCalled } }
+    var versionCalled: Int { lock.withLock { _versionCalled } }
+
+    func load() async throws -> AddressDataset {
+        lock.withLock { _loadCalled += 1 }
+        return try await inner.load()
+    }
+
+    var version: DatasetVersion {
+        get async throws {
+            lock.withLock { _versionCalled += 1 }
+            return try await inner.version
+        }
+    }
+}
+
 // MARK: - RemoteAddressDataSource
 
 @Suite struct RemoteAddressDataSourceTests {
@@ -211,6 +236,33 @@ private struct FailingDataSource: AddressDataSource {
             cache: cache, refreshesInBackground: false
         )
         #expect(try await source.load().version == DatasetVersion("2026.06"))
+    }
+
+    @Test func versionUsesLightweightPathNotLoad() async throws {
+        // CachingDataSource.version must call fallback.version (lightweight decode),
+        // not fallback.load() (full dataset decode). This verifies the optimization is wired.
+        let cache = tempCache(); cache.clear()
+        let spy = InspectingDataSource(InMemoryDataSource(dataset("2026.01")))
+        let source = CachingDataSource(
+            remote: FailingDataSource(), fallback: spy,
+            cache: cache, refreshesInBackground: false
+        )
+        _ = try await source.version
+        #expect(spy.versionCalled == 1, "version should call fallback.version")
+        #expect(spy.loadCalled == 0,    "version must not call fallback.load()")
+    }
+
+    @Test func versionPrefersCacheVersionWhenNewer() async throws {
+        let cache = tempCache()
+        try cache.write(dataset("2030.01"))
+        let spy = InspectingDataSource(InMemoryDataSource(dataset("2026.01")))
+        let source = CachingDataSource(
+            remote: FailingDataSource(), fallback: spy,
+            cache: cache, refreshesInBackground: false
+        )
+        let v = try await source.version
+        #expect(v == DatasetVersion("2030.01"))
+        #expect(spy.loadCalled == 0)
     }
 }
 

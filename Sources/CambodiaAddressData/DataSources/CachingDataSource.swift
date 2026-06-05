@@ -41,8 +41,17 @@ public struct CachingDataSource: AddressDataSource {
     }
 
     /// The version we would serve right now, without contacting the network.
+    ///
+    /// Uses ``AddressDataSource/version`` on the fallback (a lightweight decode) rather than
+    /// calling ``bestAvailable()`` (a full dataset decode) — keeps version checks cheap.
     public var version: DatasetVersion {
-        get async throws { try await bestAvailable().version }
+        get async throws {
+            let bundledVersion = try await fallback.version
+            if let cachedVersion = cache.read()?.version, cachedVersion >= bundledVersion {
+                return cachedVersion
+            }
+            return bundledVersion
+        }
     }
 
     /// Fetch the remote snapshot and persist it **only if strictly newer** than the cache.

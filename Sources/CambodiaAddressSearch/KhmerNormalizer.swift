@@ -27,8 +27,9 @@ public enum KhmerNormalizer {
     /// Produce a canonical form for comparison: NFC, zero-width stripped, lowercased,
     /// Latin diacritics folded, whitespace collapsed and trimmed.
     public static func normalize(_ input: String) -> String {
-        // Guard against multi-MB adversarial inputs.
-        let input = input.count > maxQueryLength ? String(input.prefix(maxQueryLength)) : input
+        // prefix(_:) is O(maxQueryLength) — it stops after 500 grapheme clusters regardless
+        // of total input length. Avoids the O(n) traversal that input.count would require.
+        let input = String(input.prefix(maxQueryLength))
         // 1. Canonical composition (NFC).
         let composed = input.precomposedStringWithCanonicalMapping
 

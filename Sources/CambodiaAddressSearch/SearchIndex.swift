@@ -53,24 +53,28 @@ struct SearchIndex: Sendable {
             ))
         }
         for district in dataset.districts {
-            let province = provincesByCode[district.provinceCode]
+            // Skip districts whose province is missing — the path would be unresolvable.
+            guard let province = provincesByCode[district.provinceCode] else { continue }
             documents.append(Document(
                 id: district.code, level: .district, name: district.name,
                 path: AddressSelection(province: province, district: district)
             ))
         }
         for commune in dataset.communes {
-            let district = districtsByCode[commune.districtCode]
-            let province = district.flatMap { provincesByCode[$0.provinceCode] }
+            guard let district = districtsByCode[commune.districtCode],
+                  let province = provincesByCode[district.provinceCode] else { continue }
             documents.append(Document(
                 id: commune.code, level: .commune, name: commune.name,
                 path: AddressSelection(province: province, district: district, commune: commune)
             ))
         }
         for village in dataset.villages {
-            let commune = communesByCode[village.communeCode]
-            let district = commune.flatMap { districtsByCode[$0.districtCode] }
-            let province = district.flatMap { provincesByCode[$0.provinceCode] }
+            // Mirror AddressStore.selection: only index villages with an intact parent chain.
+            // A broken-chain village would appear in search results but throw when the UI
+            // calls selection(forVillageCode:) to resolve it — producing an unresolvable result.
+            guard let commune = communesByCode[village.communeCode],
+                  let district = districtsByCode[commune.districtCode],
+                  let province = provincesByCode[district.provinceCode] else { continue }
             documents.append(Document(
                 id: village.code, level: .village, name: village.name,
                 path: AddressSelection(province: province, district: district, commune: commune, village: village)
