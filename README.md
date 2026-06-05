@@ -12,8 +12,7 @@ A production-ready Swift Package for picking Cambodian administrative addresses 
 
 ---
 
-<!-- TODO: Replace with a hero GIF showing the full picker flow (province → village → formatted address) -->
-<!-- Example: ![CambodiaAddressSDK Demo](./docs/images/picker-demo.gif) -->
+![CambodiaAddressSDK Demo](./docs/images/picker-demo.gif)
 
 ---
 
@@ -98,8 +97,7 @@ address.isComplete           // true once village is chosen
 
 ### 1. Drop-in SwiftUI picker
 
-<!-- TODO: Add screenshot of CambodiaAddressPicker rendered in a form -->
-<!-- Example: ![Picker Screenshot](./docs/images/picker-screenshot.png) -->
+![Picker Screenshot](./docs/images/picker-screenshot.png)
 
 ```swift
 import CambodiaAddress
@@ -120,8 +118,7 @@ The binding is two-way: you can pre-seed `address` with a saved selection and th
 
 ### 2. Standalone screen
 
-<!-- TODO: Add GIF of AddressPickerView presented as a sheet -->
-<!-- Example: ![Standalone Screen](./docs/images/standalone-demo.gif) -->
+![Standalone Screen](./docs/images/standalone-demo.gif)
 
 ```swift
 Button("Pick address") {
@@ -137,8 +134,7 @@ Button("Pick address") {
 
 ### 3. UIKit
 
-<!-- TODO: Add screenshot of CambodiaAddressPickerViewController -->
-<!-- Example: ![UIKit Screenshot](./docs/images/uikit-screenshot.png) -->
+![UIKit Screenshot](./docs/images/uikit-screenshot.png)
 
 ```swift
 let vc = CambodiaAddressPickerViewController { address in
@@ -179,8 +175,7 @@ struct MyApp: App {
 
 ## Search
 
-<!-- TODO: Add GIF of live search — type "doun" then "ដូន", results update -->
-<!-- Example: ![Search Demo](./docs/images/search-demo.gif) -->
+![Search Demo](./docs/images/search-demo.gif)
 
 Search works offline across all four levels, in both Khmer and English. It combines prefix matching and bounded fuzzy (Damerau-Levenshtein distance ≤ 2), so typos like `"chamkat"` still find `"Chamkar Mon"`.
 
