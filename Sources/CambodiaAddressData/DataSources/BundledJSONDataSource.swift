@@ -41,17 +41,14 @@ public struct BundledJSONDataSource: AddressDataSource {
         guard let url = bundle.url(forResource: resourceName, withExtension: "json") else {
             throw AddressError.resourceNotFound("\(resourceName).json")
         }
-        // Pre-check the declared file size before reading to avoid OOM on oversized inputs.
-        if let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize,
-           fileSize > maximumFileBytes {
-            throw AddressError.payloadTooLarge
-        }
         let data: Data
         do {
             data = try Data(contentsOf: url)
         } catch {
             throw AddressError.decodingFailed(String(describing: error))
         }
+        // Authoritative size guard — checked on actual bytes read, not filesystem attributes
+        // (which can return nil on sandboxed or virtual filesystems).
         guard data.count <= maximumFileBytes else { throw AddressError.payloadTooLarge }
         return data
     }

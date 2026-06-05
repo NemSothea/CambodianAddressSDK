@@ -13,6 +13,16 @@ enum DatasetDecoding {
         }
     }
 
+    /// Decode a domain-model cache snapshot (full property names, not wire short-keys).
+    /// Used by ``DatasetCache/read()`` — the cache stores ``AddressDataset`` directly.
+    static func decodeDataset(_ data: Data) throws -> AddressDataset {
+        do {
+            return try JSONDecoder().decode(AddressDataset.self, from: data)
+        } catch {
+            throw AddressError.decodingFailed(String(describing: error))
+        }
+    }
+
     /// Decode only the `version` field without allocating the full domain dataset.
     /// Used by ``BundledJSONDataSource/version`` to avoid a full re-decode just for sync checks.
     static func decodeVersion(_ data: Data) throws -> DatasetVersion {

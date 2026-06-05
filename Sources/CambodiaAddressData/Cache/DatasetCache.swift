@@ -27,7 +27,17 @@ public struct DatasetCache: Sendable {
     /// The cached snapshot, or `nil` if absent/unreadable/corrupt.
     public func read() -> AddressDataset? {
         guard let data = try? Data(contentsOf: fileURL) else { return nil }
-        return try? JSONDecoder().decode(AddressDataset.self, from: data)
+        return try? DatasetDecoding.decodeDataset(data)
+    }
+
+    /// Async variant: performs the blocking file I/O on a global queue so the cooperative
+    /// thread pool is not stalled. Use this from async callers such as ``CachingDataSource``.
+    func readAsync() async -> AddressDataset? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(returning: self.read())
+            }
+        }
     }
 
     /// Atomically write a snapshot, creating the enclosing directory if needed.

@@ -44,6 +44,10 @@ public struct AddressSearchEngine: AddressSearching {
         }
     }
 
+    /// Maximum query length in grapheme clusters. Inputs longer than this are truncated here,
+    /// at the user-query entry point, before any tokenization work is done.
+    static let maxQueryLength = 500
+
     private let index: SearchIndex
     private let configuration: Configuration
 
@@ -58,6 +62,8 @@ public struct AddressSearchEngine: AddressSearching {
         limit: Int
     ) async throws -> [AddressSearchResult] {
         guard limit > 0 else { return [] }
+        // Clamp before tokenization: O(maxQueryLength) prefix walk, not O(n).
+        let query = String(query.prefix(Self.maxQueryLength))
         let queryTokens = KhmerNormalizer.tokens(query)
         guard !queryTokens.isEmpty else { return [] }
 

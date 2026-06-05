@@ -47,7 +47,7 @@ public struct CachingDataSource: AddressDataSource {
     public var version: DatasetVersion {
         get async throws {
             let bundledVersion = try await fallback.version
-            if let cachedVersion = cache.read()?.version, cachedVersion >= bundledVersion {
+            if let cachedVersion = (await cache.readAsync())?.version, cachedVersion >= bundledVersion {
                 return cachedVersion
             }
             return bundledVersion
@@ -60,7 +60,7 @@ public struct CachingDataSource: AddressDataSource {
     @discardableResult
     public func refresh() async throws -> Bool {
         let remoteDataset = try await remote.load()
-        if let cachedVersion = cache.read()?.version, remoteDataset.version <= cachedVersion {
+        if let cachedVersion = (await cache.readAsync())?.version, remoteDataset.version <= cachedVersion {
             return false
         }
         try cache.write(remoteDataset)
@@ -72,7 +72,7 @@ public struct CachingDataSource: AddressDataSource {
     /// The freshest snapshot already on the device: cache if it's at least as new as the bundle,
     /// otherwise the bundle (an app update can ship a bundle newer than a stale cached download).
     private func bestAvailable() async throws -> AddressDataset {
-        let cached = cache.read()
+        let cached = await cache.readAsync()
         let bundled = try? await fallback.load()
         switch (cached, bundled) {
         case let (cached?, bundled?): return cached.version >= bundled.version ? cached : bundled

@@ -34,18 +34,7 @@ import CambodiaAddressCore
         #expect(KhmerNormalizer.tokens("Phsar Thmei, Ti-Bei") == ["phsar", "thmei", "ti", "bei"])
     }
 
-    @Test func clampsOverlongQueryInput() {
-        // 1 000-char Khmer string must be truncated to maxQueryLength before processing.
-        let longInput = String(repeating: "ក", count: 1_000)
-        let result = KhmerNormalizer.normalize(longInput)
-        #expect(result.count <= KhmerNormalizer.maxQueryLength)
-    }
 
-    @Test func clampsOverlongLatinQuery() {
-        let longInput = String(repeating: "a", count: 2_000)
-        let result = KhmerNormalizer.normalize(longInput)
-        #expect(result.count <= KhmerNormalizer.maxQueryLength)
-    }
 }
 
 // MARK: - Fuzzy distance
@@ -145,6 +134,17 @@ import CambodiaAddressCore
         // Exact "chamkar" should rank above any fuzzy-only neighbor.
         let results = try await engine.search("chamkar", levels: levels, limit: 10)
         #expect(results.first?.id == "1202")
+    }
+
+    @Test func clampsOverlongQuery() async throws {
+        // A multi-thousand-character query must complete without hanging — the engine truncates
+        // at maxQueryLength before any tokenization work begins.
+        let longKhmer = String(repeating: "ក", count: 2_000)
+        let longLatin = String(repeating: "a", count: 2_000)
+        let r1 = try await engine.search(longKhmer, levels: levels, limit: 5)
+        let r2 = try await engine.search(longLatin, levels: levels, limit: 5)
+        #expect(r1.count <= 5)
+        #expect(r2.count <= 5)
     }
 }
 

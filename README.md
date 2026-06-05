@@ -28,7 +28,7 @@ A production-ready Swift Package for picking Cambodian administrative addresses 
 | **Remote sync** | Refresh the dataset from your own HTTPS endpoint. Offline-first: the update lands on the next launch. |
 | **Swift 6 concurrency** | Full strict concurrency — `actor` store, `@MainActor` view models, `Sendable` everywhere. No data races. |
 | **Modular** | Five targets in a strict dependency line. Depend only on `CambodiaAddressCore` for headless/server use. |
-| **Tested** | 139 unit + integration tests, no third-party test dependencies. |
+| **Tested** | 138 unit + integration tests, no third-party test dependencies. |
 
 ---
 
@@ -421,7 +421,7 @@ This SDK follows **Semantic Versioning**. The public surface area (types, protoc
 Contributions are welcome — bug fixes, dataset updates, and new locales especially.
 
 1. Fork the repo and create a feature branch.
-2. Run `swift test` — all 139 tests must pass with zero warnings under Swift 6 strict concurrency.
+2. Run `swift test` — all 138 tests must pass with zero warnings under Swift 6 strict concurrency.
 3. Follow the conventions in [`ARCHITECTURE.md`](./ARCHITECTURE.md): no third-party deps in shipping targets, no `fatalError` stubs, public API gets `///` doc comments.
 4. Open a pull request against `main`.
 

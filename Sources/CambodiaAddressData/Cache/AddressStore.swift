@@ -37,15 +37,27 @@ actor AddressStore {
     }
 
     func districts(inProvince provinceCode: String) async throws -> [District] {
-        try await ensureLoaded().districtsByProvince[provinceCode] ?? []
+        let index = try await ensureLoaded()
+        guard index.provincesByCode[provinceCode] != nil else {
+            throw AddressError.notFound(code: provinceCode)
+        }
+        return index.districtsByProvince[provinceCode] ?? []
     }
 
     func communes(inDistrict districtCode: String) async throws -> [Commune] {
-        try await ensureLoaded().communesByDistrict[districtCode] ?? []
+        let index = try await ensureLoaded()
+        guard index.districtsByCode[districtCode] != nil else {
+            throw AddressError.notFound(code: districtCode)
+        }
+        return index.communesByDistrict[districtCode] ?? []
     }
 
     func villages(inCommune communeCode: String) async throws -> [Village] {
-        try await ensureLoaded().villagesByCommune[communeCode] ?? []
+        let index = try await ensureLoaded()
+        guard index.communesByCode[communeCode] != nil else {
+            throw AddressError.notFound(code: communeCode)
+        }
+        return index.villagesByCommune[communeCode] ?? []
     }
 
     func selection(forVillageCode villageCode: String) async throws -> AddressSelection {

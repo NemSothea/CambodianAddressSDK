@@ -104,9 +104,13 @@ import CambodiaAddressCore
         #expect(villages.map(\.code) == ["12010101", "12010102"])
     }
 
-    @Test func unknownParentReturnsEmpty() async throws {
-        #expect(try await repo.districts(inProvince: "99").isEmpty)
-        #expect(try await repo.villages(inCommune: "999999").isEmpty)
+    @Test func unknownParentThrowsNotFound() async {
+        await #expect(throws: AddressError.notFound(code: "99")) {
+            try await repo.districts(inProvince: "99")
+        }
+        await #expect(throws: AddressError.notFound(code: "999999")) {
+            try await repo.villages(inCommune: "999999")
+        }
     }
 
     @Test func selectionResolvesFullChain() async throws {
