@@ -36,6 +36,20 @@ import CambodiaAddressCore
             try await source.load()
         }
     }
+
+    @Test func rejectsTooLargePayload() async {
+        // A 100-byte cap is well below the real bundled file (~1.3 MB); load must throw.
+        let source = BundledJSONDataSource(resourceName: "cambodia_address", bundle: .module, maximumFileBytes: 100)
+        await #expect(throws: AddressError.payloadTooLarge) {
+            try await source.load()
+        }
+    }
+
+    @Test func versionDecodesWithoutFullLoad() async throws {
+        // version should return a non-empty string using the lightweight decode path.
+        let version = try await BundledJSONDataSource().version
+        #expect(!version.rawValue.isEmpty)
+    }
 }
 
 // MARK: - Wire DTO mapping

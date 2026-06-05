@@ -33,6 +33,19 @@ import CambodiaAddressCore
     @Test func tokenizesOnPunctuation() {
         #expect(KhmerNormalizer.tokens("Phsar Thmei, Ti-Bei") == ["phsar", "thmei", "ti", "bei"])
     }
+
+    @Test func clampsOverlongQueryInput() {
+        // 1 000-char Khmer string must be truncated to maxQueryLength before processing.
+        let longInput = String(repeating: "ក", count: 1_000)
+        let result = KhmerNormalizer.normalize(longInput)
+        #expect(result.count <= KhmerNormalizer.maxQueryLength)
+    }
+
+    @Test func clampsOverlongLatinQuery() {
+        let longInput = String(repeating: "a", count: 2_000)
+        let result = KhmerNormalizer.normalize(longInput)
+        #expect(result.count <= KhmerNormalizer.maxQueryLength)
+    }
 }
 
 // MARK: - Fuzzy distance

@@ -53,9 +53,17 @@ actor AddressStore {
         guard let village = index.villagesByCode[villageCode] else {
             throw AddressError.notFound(code: villageCode)
         }
-        let commune = index.communesByCode[village.communeCode]
-        let district = commune.flatMap { index.districtsByCode[$0.districtCode] }
-        let province = district.flatMap { index.provincesByCode[$0.provinceCode] }
+        // Require a complete, unbroken parent chain. Missing parents indicate a corrupt/custom
+        // dataset; returning a partial selection would silently mislead callers.
+        guard let commune = index.communesByCode[village.communeCode] else {
+            throw AddressError.notFound(code: village.communeCode)
+        }
+        guard let district = index.districtsByCode[commune.districtCode] else {
+            throw AddressError.notFound(code: commune.districtCode)
+        }
+        guard let province = index.provincesByCode[district.provinceCode] else {
+            throw AddressError.notFound(code: district.provinceCode)
+        }
         return AddressSelection(province: province, district: district, commune: commune, village: village)
     }
 

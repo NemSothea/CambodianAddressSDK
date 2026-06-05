@@ -8,21 +8,43 @@ import CambodiaAddressCore
 public struct BundledJSONDataSource: AddressDataSource {
     private let resourceName: String
     private let bundle: Bundle
+    /// Maximum accepted file size in bytes. Rejects suspiciously large custom bundles
+    /// before they reach the decoder (DoS guard; the real NCDD dataset is ~1.3 MB).
+    private let maximumFileBytes: Int
 
     /// - Parameter resourceName: JSON file name without extension. Defaults to `"cambodia_address"`.
     public init(resourceName: String = "cambodia_address") {
         self.init(resourceName: resourceName, bundle: .module)
     }
 
-    /// Internal initializer allowing a custom bundle (used by tests).
-    init(resourceName: String, bundle: Bundle) {
+    /// Internal initializer allowing a custom bundle and size cap (used by tests).
+    init(resourceName: String, bundle: Bundle, maximumFileBytes: Int = 64 * 1024 * 1024) {
         self.resourceName = resourceName
         self.bundle = bundle
+        self.maximumFileBytes = maximumFileBytes
     }
 
     public func load() async throws -> AddressDataset {
+        try DatasetDecoding.decode(try readFile())
+    }
+
+    /// Returns the dataset version without allocating the full domain model — avoids a full
+    /// re-decode when the only caller is a sync/invalidation check.
+    public var version: DatasetVersion {
+        get async throws { try DatasetDecoding.decodeVersion(try readFile()) }
+    }
+
+    // MARK: - Helpers
+
+    /// Read and size-validate the bundled JSON file.
+    private func readFile() throws -> Data {
         guard let url = bundle.url(forResource: resourceName, withExtension: "json") else {
             throw AddressError.resourceNotFound("\(resourceName).json")
+        }
+        // Pre-check the declared file size before reading to avoid OOM on oversized inputs.
+        if let fileSize = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize,
+           fileSize > maximumFileBytes {
+            throw AddressError.payloadTooLarge
         }
         let data: Data
         do {
@@ -30,10 +52,7 @@ public struct BundledJSONDataSource: AddressDataSource {
         } catch {
             throw AddressError.decodingFailed(String(describing: error))
         }
-        return try DatasetDecoding.decode(data)
-    }
-
-    public var version: DatasetVersion {
-        get async throws { try await load().version }
+        guard data.count <= maximumFileBytes else { throw AddressError.payloadTooLarge }
+        return data
     }
 }

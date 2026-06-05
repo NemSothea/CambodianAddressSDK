@@ -20,9 +20,15 @@ public enum KhmerNormalizer {
     /// folding. The Khmer block starts at U+1780, far above this, so it is untouched.
     private static let latinFoldingCeiling: UInt32 = 0x0250
 
+    /// Upper bound on query length (in characters). Inputs longer than this are truncated
+    /// before any processing — prevents unbounded work on adversarial multi-MB inputs.
+    static let maxQueryLength = 500
+
     /// Produce a canonical form for comparison: NFC, zero-width stripped, lowercased,
     /// Latin diacritics folded, whitespace collapsed and trimmed.
     public static func normalize(_ input: String) -> String {
+        // Guard against multi-MB adversarial inputs.
+        let input = input.count > maxQueryLength ? String(input.prefix(maxQueryLength)) : input
         // 1. Canonical composition (NFC).
         let composed = input.precomposedStringWithCanonicalMapping
 
