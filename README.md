@@ -396,12 +396,14 @@ It rebuilds automatically on every push to `main`.
 
 | Version | Status | What's included |
 |---|---|---|
-| **v1.x** | ✅ Done | Province / District / Commune / Village · offline JSON · search · SwiftUI + UIKit · NCDD dataset |
-| **v2.x** | ✅ Done | Multi-locale place names (`+` arbitrary locales via `.locale("fr")` with fallback) · Khmer-numeral formatting |
-| **v3.x** | ✅ Done (sync) | `RemoteAddressDataSource` + `CachingDataSource`, offline-first API sync · GPS → nearest commune & postal codes pending (blocked on geodata) |
-| **v4.x** | Planned | MapKit integration · reverse geocoding · address validation |
+| **v1.0–1.0.2** | ✅ Done | Province / District / Commune / Village · offline JSON · search · SwiftUI + UIKit · NCDD dataset · picker concurrency fixes |
+| **v1.1** | ✅ Done | `RemoteAddressDataSource` + `CachingDataSource` · offline-first API sync |
+| **v1.2** | ✅ Done | Multi-locale place names · arbitrary locales via `.locale("fr")` with fallback · Khmer-numeral formatting |
+| **v1.3–1.4** | ✅ Done | DoS hardening · code-review fixes (search/selection parity, async cache I/O, traversal contract) · full README media |
+| **v2.x** | Planned | MapKit integration · reverse geocoding · GPS → nearest commune |
+| **v3.x** | Planned | Address validation · postal codes · offline geodata bundle |
 
-See the full [release history →](https://github.com/NemSothea/CambodianAddressSDK/releases)
+See the full [release history →](https://github.com/NemSothea/CambodianAddressSDK/releases) and [CHANGELOG →](./CHANGELOG.md)
 
 ---
 
