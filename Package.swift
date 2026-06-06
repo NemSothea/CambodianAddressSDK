@@ -17,6 +17,8 @@ let package = Package(
         .library(name: "CambodiaAddressCore", targets: ["CambodiaAddressCore"]),
         // Search engine in isolation, for consumers who index their own data.
         .library(name: "CambodiaAddressSearch", targets: ["CambodiaAddressSearch"]),
+        // GPS → nearest commune + MapKit map picker. Optional: keeps MapKit out of the core SDK.
+        .library(name: "CambodiaAddressGeo", targets: ["CambodiaAddressGeo"]),
     ],
     targets: [
         // MARK: Domain (pure, Foundation-only)
@@ -39,13 +41,23 @@ let package = Package(
             dependencies: ["CambodiaAddressCore"]
         ),
 
-        // MARK: UI (SwiftUI + UIKit + view models) — the only target that links UI frameworks
+        // MARK: Geo (GPS → nearest commune, haversine, bundled centroids; Foundation-only)
+        .target(
+            name: "CambodiaAddressGeo",
+            dependencies: ["CambodiaAddressCore"],
+            resources: [
+                .process("Resources/cambodia_communes_geo.json")
+            ]
+        ),
+
+        // MARK: UI (SwiftUI + UIKit + MapKit view models) — the only target that links UI frameworks
         .target(
             name: "CambodiaAddressUI",
             dependencies: [
                 "CambodiaAddressCore",
                 "CambodiaAddressData",
                 "CambodiaAddressSearch",
+                "CambodiaAddressGeo",
             ]
         ),
 
@@ -57,6 +69,7 @@ let package = Package(
                 "CambodiaAddressData",
                 "CambodiaAddressSearch",
                 "CambodiaAddressUI",
+                "CambodiaAddressGeo",
             ]
         ),
 
@@ -80,6 +93,10 @@ let package = Package(
         .testTarget(
             name: "CambodiaAddressTests",
             dependencies: ["CambodiaAddress"]
+        ),
+        .testTarget(
+            name: "CambodiaAddressGeoTests",
+            dependencies: ["CambodiaAddressGeo", "CambodiaAddressCore"]
         ),
     ],
     swiftLanguageModes: [.v6]

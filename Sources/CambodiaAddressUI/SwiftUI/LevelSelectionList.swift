@@ -54,7 +54,7 @@ struct LevelSelectionList: View {
     }
 }
 
-private extension View {
+extension View {
     /// Inline title on platforms that support it; no-op elsewhere (keeps macOS host builds happy).
     func navigationBarTitleDisplayModeInlineIfAvailable() -> some View {
         #if os(iOS)
