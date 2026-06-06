@@ -181,6 +181,8 @@ struct MyApp: App {
 
 ### 6. GPS → nearest commune
 
+![GPS lookup result](./docs/images/geo-map-screenshot.png)
+
 `AddressGeoService` resolves a GPS coordinate to a full `AddressSelection` (province + district + commune) using bundled centroids and the haversine formula. Village is intentionally `nil` — the user confirms it in the picker.
 
 ```swift
@@ -207,6 +209,8 @@ Feed `selection` straight into a `CambodiaAddressPicker` binding so the user can
 ```
 
 ### 7. MapKit map picker (iOS 18+)
+
+![MapAddressPicker](./docs/images/map-picker-screenshot.png)
 
 `MapAddressPicker` is a SwiftUI view that lets the user tap anywhere on a map. The status bar shows the resolved commune in real time; tapping **Confirm** calls back with the full `AddressSelection`.
 
@@ -353,6 +357,8 @@ let source = CachingDataSource(remote: remote)   // falls back to the bundled da
 ---
 
 ## Validation
+
+![Validation demo](./docs/images/validation-demo.gif)
 
 `AddressValidator` checks a selection in one pass and returns every `ValidationIssue`. Checks are divided into three layers: completeness, NCDD code format, and parent-child consistency.
 
