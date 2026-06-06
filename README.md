@@ -24,10 +24,13 @@ A production-ready Swift Package for picking Cambodian administrative addresses 
 | **Fast search** | Prefix + typo-tolerant fuzzy search across all 14,578 villages in Khmer and English. |
 | **Bilingual** | Place names in Khmer (`ភ្នំពេញ`) and English (`Phnom Penh`), with arbitrary extra locales and graceful fallback. |
 | **SwiftUI + UIKit** | Drop-in binding picker, standalone screen, and a `UIHostingController`-backed view controller. |
+| **GPS → commune** | `AddressGeoService` resolves a GPS coordinate to the nearest commune using bundled centroids + haversine. `MapAddressPicker` (iOS 18+) lets the user tap the map to confirm. |
+| **Validation** | `AddressValidator` checks completeness, NCDD code format, and parent-child consistency in one pass — returns every `ValidationIssue` at once. |
+| **Postal codes** | `PostalCode` derives a 5-digit Cambodia Post code from any province + district selection. |
 | **Remote sync** | Refresh the dataset from your own HTTPS endpoint. Offline-first: the update lands on the next launch. |
 | **Swift 6 concurrency** | Full strict concurrency — `actor` store, `@MainActor` view models, `Sendable` everywhere. No data races. |
-| **Modular** | Five targets in a strict dependency line. Depend only on `CambodiaAddressCore` for headless/server use. |
-| **Tested** | 138 unit + integration tests, no third-party test dependencies. |
+| **Modular** | Six targets in a strict dependency line. Depend only on `CambodiaAddressCore` for headless/server use. |
+| **Tested** | 168 unit + integration tests, no third-party test dependencies. |
 
 ---
 
@@ -52,16 +55,21 @@ https://github.com/NemSothea/CambodianAddressSDK.git
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/NemSothea/CambodianAddressSDK.git", from: "1.3.0")
+    .package(url: "https://github.com/NemSothea/CambodianAddressSDK.git", from: "2.0.0")
 ],
 targets: [
     .target(name: "MyApp", dependencies: [
-        .product(name: "CambodiaAddress", package: "CambodianAddressSDK")
+        // Full picker + map: SwiftUI/UIKit + GPS + validation
+        .product(name: "CambodiaAddress", package: "CambodianAddressSDK"),
+        // GPS only (no SwiftUI/UIKit, works on macOS/Linux/server):
+        // .product(name: "CambodiaAddressGeo", package: "CambodianAddressSDK"),
     ])
 ]
 ```
 
-> **Headless / server use?** Depend on `CambodiaAddressCore` instead — it has no SwiftUI/UIKit import and links against Foundation only.
+> **Headless / server use?** Depend on `CambodiaAddressCore` instead — no SwiftUI/UIKit, Foundation only, includes `AddressValidator` and `PostalCode`.
+>
+> **GPS without MapKit?** Depend on `CambodiaAddressGeo` — pure Foundation, works on macOS and Linux.
 
 ---
 
@@ -170,6 +178,56 @@ struct MyApp: App {
     }
 }
 ```
+
+### 6. GPS → nearest commune
+
+`AddressGeoService` resolves a GPS coordinate to a full `AddressSelection` (province + district + commune) using bundled centroids and the haversine formula. Village is intentionally `nil` — the user confirms it in the picker.
+
+```swift
+import CambodiaAddressGeo
+import CambodiaAddressCore
+
+let geo = AddressGeoService()
+let coordinate = Coordinate(latitude: 11.5625, longitude: 104.916)
+
+let selection = try await geo.selection(near: coordinate)
+print(selection.province?.name.en ?? "")  // "Phnom Penh"
+print(selection.commune?.name.km  ?? "")  // nearest commune in Khmer
+```
+
+Feed `selection` straight into a `CambodiaAddressPicker` binding so the user can confirm or adjust the village:
+
+```swift
+.sheet(isPresented: $showPicker) {
+    CambodiaAddressPicker(selection: $address)
+}
+.onAppear {
+    Task { address = try await geo.selection(near: userLocation) }
+}
+```
+
+### 7. MapKit map picker (iOS 18+)
+
+`MapAddressPicker` is a SwiftUI view that lets the user tap anywhere on a map. The status bar shows the resolved commune in real time; tapping **Confirm** calls back with the full `AddressSelection`.
+
+```swift
+import CambodiaAddress   // CambodiaAddressUI re-exports MapAddressPicker
+
+@available(iOS 18.0, *)
+struct LocationPickerSheet: View {
+    @Binding var address: AddressSelection
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        MapAddressPicker { selection in
+            address = selection
+            dismiss()
+        }
+    }
+}
+```
+
+> `MapAddressPicker` requires iOS 18 and `CambodiaAddressGeo` (automatically pulled in as a dependency of `CambodiaAddressUI`).
 
 ---
 
@@ -294,6 +352,63 @@ let source = CachingDataSource(remote: remote)   // falls back to the bundled da
 
 ---
 
+## Validation
+
+`AddressValidator` checks a selection in one pass and returns every `ValidationIssue`. Checks are divided into three layers: completeness, NCDD code format, and parent-child consistency.
+
+```swift
+import CambodiaAddressCore
+
+let issues = AddressValidator.validate(address)
+
+if issues.isEmpty {
+    submit(address)
+} else {
+    for issue in issues {
+        print(issue.errorDescription ?? "")
+    }
+}
+```
+
+Village validation is required by default. Pass `requiresVillage: false` for commune-level forms:
+
+```swift
+AddressValidator.validate(address, requiresVillage: false)
+AddressValidator.isValid(address, requiresVillage: false)   // Bool convenience
+```
+
+`ValidationIssue` cases:
+
+| Category | Cases |
+|---|---|
+| Completeness | `.missingProvince` · `.missingDistrict` · `.missingCommune` · `.missingVillage` |
+| Code format | `.invalidProvinceCode` · `.invalidDistrictCode` · `.invalidCommuneCode` · `.invalidVillageCode` |
+| Consistency | `.districtProvinceMismatch` · `.communeDistrictMismatch` · `.villageCommuneMismatch` |
+
+---
+
+## Postal Codes
+
+`PostalCode` derives a 5-digit Cambodia Post code from an `AddressSelection`. The formula is `province(2) + districtSuffix(2) + "0"`.
+
+```swift
+import CambodiaAddressCore
+
+// From a selection (most common path):
+if let code = address.postalCode {
+    print(code.rawValue)   // "12010"  (Phnom Penh / Doun Penh)
+}
+
+// Direct construction:
+let code = PostalCode(province: province, district: district)  // "12010"
+let prov = PostalCode(province: province)                      // "12000"  province-only
+let raw  = PostalCode(rawValue: "12010")                       // validated from a stored string
+```
+
+`PostalCode` conforms to `Codable`, `Sendable`, `Hashable`, and `RawRepresentable` — safe to store in `UserDefaults` or a `Codable` model.
+
+---
+
 ## Error Handling
 
 All async SDK calls throw `AddressError`. Handle it at the repository boundary:
@@ -322,10 +437,11 @@ do {
 
 ```
 CambodiaAddress             ← Umbrella facade · composition root
-   ├── CambodiaAddressUI    ← SwiftUI picker + UIKit wrapper · @Observable view model
+   ├── CambodiaAddressUI    ← SwiftUI picker + UIKit wrapper + MapAddressPicker · @Observable view model
+   ├── CambodiaAddressGeo   ← GPS → commune · NearestCommuneFinder actor · haversine  (Foundation only)
    ├── CambodiaAddressData  ← Datasources · AddressStore actor · DefaultAddressRepository
    ├── CambodiaAddressSearch← Khmer normalizer · prefix index · Damerau-Levenshtein fuzzy
-   └── CambodiaAddressCore  ← Domain models · protocols · formatter  (Foundation only)
+   └── CambodiaAddressCore  ← Domain models · AddressValidator · PostalCode · formatter  (Foundation only)
 ```
 
 Key design decisions:
@@ -341,14 +457,15 @@ See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full contract and [`BUILD_PLA
 
 ## Testing
 
-The SDK ships with **139 tests** across five targets:
+The SDK ships with **168 tests** across six targets:
 
 | Target | What's tested |
 |---|---|
-| `CambodiaAddressCoreTests` | Model decoding, `LocalizedName.resolved`, `AddressFormatter`, selection invariants |
+| `CambodiaAddressCoreTests` | Model decoding, `LocalizedName.resolved`, `AddressFormatter`, selection invariants, `AddressValidator`, `PostalCode` |
 | `CambodiaAddressDataTests` | Repository linkage, lazy single-load, concurrency, remote sync, caching, wire format |
 | `CambodiaAddressSearchTests` | Khmer normalization, prefix correctness, fuzzy bounds, ranking, p95 < 16 ms on 25k dataset |
 | `CambodiaAddressUITests` | `AddressPickerViewModel` state transitions, debounce, stale-result guards, reset cascade |
+| `CambodiaAddressGeoTests` | Haversine identity/symmetry/real-distance, `NearestCommuneFinder` actor, bundled centroid load, coordinate bounds |
 | `CambodiaAddressTests` | End-to-end facade tests against the bundled NCDD dataset |
 
 Run locally:
@@ -400,8 +517,8 @@ It rebuilds automatically on every push to `main`.
 | **v1.1** | ✅ Done | `RemoteAddressDataSource` + `CachingDataSource` · offline-first API sync |
 | **v1.2** | ✅ Done | Multi-locale place names · arbitrary locales via `.locale("fr")` with fallback · Khmer-numeral formatting |
 | **v1.3–1.4** | ✅ Done | DoS hardening · code-review fixes (search/selection parity, async cache I/O, traversal contract) · full README media |
-| **v2.x** | Planned | MapKit integration · reverse geocoding · GPS → nearest commune |
-| **v3.x** | Planned | Address validation · postal codes · offline geodata bundle |
+| **v2.x** | ✅ Done | `CambodiaAddressGeo` module · `NearestCommuneFinder` actor · `AddressGeoService` · `MapAddressPicker` (SwiftUI + MapKit, iOS 18+) · bundled commune centroids |
+| **v3.x** | ✅ Done | `AddressValidator` · `ValidationIssue` · `PostalCode` · `AddressSelection.postalCode` |
 
 See the full [release history →](https://github.com/NemSothea/CambodianAddressSDK/releases) and [CHANGELOG →](./CHANGELOG.md)
 
@@ -418,7 +535,7 @@ This SDK follows **Semantic Versioning**. The public surface area (types, protoc
 Contributions are welcome — bug fixes, dataset updates, and new locales especially.
 
 1. Fork the repo and create a feature branch.
-2. Run `swift test` — all 138 tests must pass with zero warnings under Swift 6 strict concurrency.
+2. Run `swift test` — all 168 tests must pass with zero warnings under Swift 6 strict concurrency.
 3. Follow the conventions in [`ARCHITECTURE.md`](./ARCHITECTURE.md): no third-party deps in shipping targets, no `fatalError` stubs, public API gets `///` doc comments.
 4. Open a pull request against `main`.
 
