@@ -7,6 +7,59 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [v2.0.0] — 2026-06-06
+
+### Added — GPS → Nearest Commune (`CambodiaAddressGeo`)
+
+New optional product `CambodiaAddressGeo` (Foundation-only; MapKit stays out of the core):
+
+- **`Coordinate`** — WGS-84 lat/lon value type (`Codable, Sendable, Hashable`); converts trivially to `CLLocationCoordinate2D`.
+- **`HaversineDistance`** — pure-Swift great-circle distance (no framework dependency).
+- **`NearestCommuneFinder`** (actor) — lazy-loads 1 652 commune centroids from the bundled `cambodia_communes_geo.json`, then answers nearest-commune queries in O(n) via haversine. Concurrent callers share a single in-flight load.
+- **`AddressGeoService`** — combines `NearestCommuneFinder` + `AddressRepository` to return a full `AddressSelection` (province + district + commune) from a GPS coordinate. Village is intentionally `nil` — the user confirms it in the picker.
+- **`BundledGeoDataSource`** — loads `cambodia_communes_geo.json` from the module bundle. Swap for a `GeoDataSource` conformer to use remote/custom centroid data with zero code changes.
+- **`GeoDataSource`** protocol — the injection point for centroid data (bundle, remote, in-memory for tests).
+- **`GeoError`** — typed errors: `.resourceNotFound`, `.decodingFailed`, `.noPoints`, `.notLoaded`.
+- **`cambodia_communes_geo.json`** — approximate centroids for all 1 652 NCDD communes. Replace with precise NCDD geodata for production use.
+
+### Added — MapKit map picker (`CambodiaAddressUI`)
+
+- **`MapAddressPicker`** (SwiftUI, iOS 18+) — tap anywhere on a map to drop a pin; the status banner resolves the nearest commune in real time. **Confirm** calls back with the full `AddressSelection`. Requires `CambodiaAddressGeo` (already a dependency of `CambodiaAddressUI`).
+
+### Package
+
+- New library product `CambodiaAddressGeo` and test target `CambodiaAddressGeoTests` (10 tests).
+- `CambodiaAddressUI` now depends on `CambodiaAddressGeo`.
+
+---
+
+## [v3.0.0] — 2026-06-06
+
+### Added — Address validation (`CambodiaAddressCore`)
+
+- **`AddressValidator`** — pure-domain enum with two entry points:
+  - `validate(_:requiresVillage:) -> [ValidationIssue]` — runs all checks in one pass and returns every issue.
+  - `isValid(_:requiresVillage:) -> Bool` — convenience predicate.
+- **`ValidationIssue`** — typed `Error, Sendable, Hashable` enum covering:
+  - Completeness: `.missingProvince`, `.missingDistrict`, `.missingCommune`, `.missingVillage`
+  - Code format: `.invalidProvinceCode`, `.invalidDistrictCode`, `.invalidCommuneCode`, `.invalidVillageCode` (NCDD digit-length rules)
+  - Parent-child consistency: `.districtProvinceMismatch`, `.communeDistrictMismatch`, `.villageCommuneMismatch`
+
+### Added — Postal codes (`CambodiaAddressCore`)
+
+- **`PostalCode`** — 5-digit `RawRepresentable, Codable, Sendable, Hashable` value type.
+  - `init?(province:district:)` — derives `provinceCode + districtSuffix + "0"` (e.g. province `"12"` + district `"1201"` → `"12010"`).
+  - `init?(province:)` — province-level code (`"12"` → `"12000"`).
+  - `init?(rawValue:)` — validates 5 ASCII digits.
+- **`AddressSelection.postalCode`** — computed property returning the most-precise derivable postal code (`nil` when no province is selected).
+
+### Tests
+
+- 20 new tests in `CambodiaAddressCoreTests` (validator + postal code suites).
+- **Total: 168 tests, 0 failures, 0 warnings** under Swift 6 strict concurrency.
+
+---
+
 ## [v1.4.1] — 2026-06-05
 
 ### Documentation

@@ -224,3 +224,138 @@ import Foundation
         #expect(AddressError.notFound(code: "12") != .notFound(code: "13"))
     }
 }
+
+// MARK: - AddressValidator
+
+@Suite struct AddressValidatorTests {
+
+    // Commune code is "120103" (Phsar Thmei 3), village communeCode also "120103"
+    private func makeSelection(
+        province: Province = Fixtures.phnomPenh,
+        district: District = Fixtures.dounPenh,
+        commune: Commune   = Fixtures.phsarThmei3,
+        village: Village   = Fixtures.village
+    ) -> AddressSelection {
+        AddressSelection(province: province, district: district, commune: commune, village: village)
+    }
+
+    @Test func validFullSelectionProducesNoIssues() {
+        #expect(AddressValidator.validate(makeSelection()).isEmpty)
+        #expect(AddressValidator.isValid(makeSelection()))
+    }
+
+    @Test func missingProvinceIsReported() {
+        let issues = AddressValidator.validate(.init())
+        #expect(issues == [.missingProvince])
+    }
+
+    @Test func missingDistrictIsReported() {
+        let issues = AddressValidator.validate(.init(province: Fixtures.phnomPenh))
+        #expect(issues == [.missingDistrict])
+    }
+
+    @Test func missingCommuneIsReported() {
+        let issues = AddressValidator.validate(.init(province: Fixtures.phnomPenh, district: Fixtures.dounPenh))
+        #expect(issues == [.missingCommune])
+    }
+
+    @Test func missingVillageIsReportedByDefault() {
+        let s = AddressSelection(province: Fixtures.phnomPenh, district: Fixtures.dounPenh, commune: Fixtures.phsarThmei3)
+        #expect(AddressValidator.validate(s) == [.missingVillage])
+    }
+
+    @Test func missingVillageIsOptional() {
+        let s = AddressSelection(province: Fixtures.phnomPenh, district: Fixtures.dounPenh, commune: Fixtures.phsarThmei3)
+        #expect(AddressValidator.validate(s, requiresVillage: false).isEmpty)
+    }
+
+    @Test func invalidProvinceCodeIsReported() {
+        let badProvince = Province(code: "1", name: LocalizedName(km: "X", en: "X"))
+        let issues = AddressValidator.validate(makeSelection(province: badProvince))
+        #expect(issues.contains(ValidationIssue.invalidProvinceCode("1")))
+    }
+
+    @Test func districtProvinceMismatchIsReported() {
+        let mismatchedDistrict = District(code: "9901", provinceCode: "99",
+                                          name: LocalizedName(km: "X", en: "X"), type: .district)
+        let issues = AddressValidator.validate(makeSelection(district: mismatchedDistrict))
+        #expect(issues.contains(ValidationIssue.districtProvinceMismatch(districtProvinceCode: "99", selectedProvinceCode: "12")))
+    }
+
+    @Test func communeDistrictMismatchIsReported() {
+        let mismatchedCommune = Commune(code: "990101", districtCode: "9901",
+                                        name: LocalizedName(km: "X", en: "X"), type: .commune)
+        let issues = AddressValidator.validate(makeSelection(commune: mismatchedCommune))
+        #expect(issues.contains(ValidationIssue.communeDistrictMismatch(communeDistrictCode: "9901", selectedDistrictCode: "1201")))
+    }
+
+    @Test func villageCommuneMismatchIsReported() {
+        // Village whose communeCode doesn't match phsarThmei3.code ("120103")
+        let mismatchedVillage = Village(code: "99010301", communeCode: "990103",
+                                        name: LocalizedName(km: "X", en: "X"))
+        let issues = AddressValidator.validate(makeSelection(village: mismatchedVillage))
+        #expect(issues.contains(ValidationIssue.villageCommuneMismatch(villageCommuneCode: "990103", selectedCommuneCode: "120103")))
+    }
+
+    @Test func multipleIssuesCollectedInOnePass() {
+        let badProvince = Province(code: "1",  name: LocalizedName(km: "X", en: "X"))
+        let badDistrict = District(code: "99", provinceCode: "99",
+                                   name: LocalizedName(km: "X", en: "X"), type: .district)
+        let badCommune  = Commune(code: "9999", districtCode: "9901",
+                                  name: LocalizedName(km: "X", en: "X"), type: .commune)
+        let badVillage  = Village(code: "99990101", communeCode: "999901",
+                                  name: LocalizedName(km: "X", en: "X"))
+        let issues = AddressValidator.validate(
+            AddressSelection(province: badProvince, district: badDistrict,
+                             commune: badCommune, village: badVillage)
+        )
+        #expect(issues.count >= 4)
+    }
+}
+
+// MARK: - PostalCode
+
+@Suite struct PostalCodeTests {
+
+    @Test func derivesFromProvinceAndDistrict() {
+        // Province "12" + district "1201" → "12" + "01" + "0" = "12010"
+        let code = PostalCode(province: Fixtures.phnomPenh, district: Fixtures.dounPenh)
+        #expect(code?.rawValue == "12010")
+    }
+
+    @Test func derivesProvinceOnly() {
+        let code = PostalCode(province: Fixtures.phnomPenh)
+        #expect(code?.rawValue == "12000")
+    }
+
+    @Test func rejectsShortRawValue() {
+        #expect(PostalCode(rawValue: "1234") == nil)
+    }
+
+    @Test func rejectsAlphaRawValue() {
+        #expect(PostalCode(rawValue: "1200A") == nil)
+    }
+
+    @Test func acceptsValidRawValue() {
+        #expect(PostalCode(rawValue: "12000")?.rawValue == "12000")
+    }
+
+    @Test func selectionPostalCodeUsesDistrictWhenAvailable() {
+        #expect(Fixtures.fullSelection.postalCode?.rawValue == "12010")
+    }
+
+    @Test func selectionPostalCodeFallsBackToProvince() {
+        let sel = AddressSelection(province: Fixtures.phnomPenh)
+        #expect(sel.postalCode?.rawValue == "12000")
+    }
+
+    @Test func selectionPostalCodeNilWhenNoProvince() {
+        #expect(AddressSelection().postalCode == nil)
+    }
+
+    @Test func postalCodeIsHashable() {
+        let a = PostalCode(rawValue: "12000")!
+        let b = PostalCode(rawValue: "12000")!
+        #expect(Set([a, b]).count == 1)
+    }
+}
