@@ -170,6 +170,112 @@ final class DemoCapture: XCTestCase {
         saveFrames(frames, name: "picker-demo")
     }
 
+    // MARK: - 06 · GPS & Map tab screenshot (GPS lookup result)
+
+    func test06_GeoMapScreenshot() throws {
+        app.launch()
+        let mapTab = app.tabBars.buttons["Map"]
+        XCTAssertTrue(mapTab.waitForExistence(timeout: 10))
+        mapTab.tap()
+        sleep(1)
+
+        // Trigger the GPS lookup button (resolves Phnom Penh coordinate offline)
+        let gpsBtn = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS[c] %@", "Phnom Penh")
+        ).firstMatch
+        if gpsBtn.waitForExistence(timeout: 5) {
+            gpsBtn.tap()
+            sleep(3)    // wait for async commune lookup
+        }
+
+        savePNG(XCUIScreen.main.screenshot(), name: "geo-map-screenshot")
+    }
+
+    // MARK: - 07 · Map picker sheet screenshot
+
+    func test07_MapPickerSheetScreenshot() throws {
+        app.launch()
+        let mapTab = app.tabBars.buttons["Map"]
+        XCTAssertTrue(mapTab.waitForExistence(timeout: 10))
+        mapTab.tap()
+        sleep(1)
+
+        let openBtn = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS[c] %@", "Open map picker")
+        ).firstMatch
+        XCTAssertTrue(openBtn.waitForExistence(timeout: 5))
+        openBtn.tap()
+        sleep(2)    // wait for map to render
+
+        savePNG(XCUIScreen.main.screenshot(), name: "map-picker-screenshot")
+    }
+
+    // MARK: - 08 · Validation tab GIF (pick → issues → resolve)
+
+    func test08_ValidationGIF() throws {
+        app.launch()
+        let validateTab = app.tabBars.buttons["Validate"]
+        XCTAssertTrue(validateTab.waitForExistence(timeout: 10))
+        validateTab.tap()
+        sleep(1)
+
+        var frames: [Data] = [screenshot()]    // initial empty state
+
+        // Pick a province
+        tapLevel("Province")
+        captureSlide(&frames, count: 6, interval: 0.12)
+        sleep(1)
+        frames.append(screenshot())
+
+        let levelSearch = app.searchFields.firstMatch
+        if levelSearch.waitForExistence(timeout: 3) {
+            levelSearch.tap()
+            levelSearch.typeText("Phnom")
+            Thread.sleep(forTimeInterval: 0.5)
+            frames.append(screenshot())
+        }
+        selectCell("Phnom Penh", frames: &frames)
+
+        // Back — validation should show missingDistrict
+        Thread.sleep(forTimeInterval: 0.5)
+        frames.append(screenshot())
+        frames.append(screenshot())
+
+        // Pick district
+        tapLevel("District")
+        captureSlide(&frames, count: 6, interval: 0.12)
+        sleep(1)
+        frames.append(screenshot())
+        selectCell("Doun Penh", frames: &frames)
+
+        Thread.sleep(forTimeInterval: 0.5)
+        frames.append(screenshot())    // missingCommune shown
+
+        // Pick commune
+        tapLevel("Commune")
+        captureSlide(&frames, count: 6, interval: 0.12)
+        sleep(1)
+        frames.append(screenshot())
+        let firstCommune = app.cells.firstMatch
+        if firstCommune.waitForExistence(timeout: 5) { firstCommune.tap() }
+        Thread.sleep(forTimeInterval: 0.5)
+        frames.append(screenshot())    // missingVillage shown (postal code appears)
+
+        // Pick village
+        tapLevel("Village")
+        captureSlide(&frames, count: 6, interval: 0.12)
+        sleep(1)
+        frames.append(screenshot())
+        let firstVillage = app.cells.firstMatch
+        if firstVillage.waitForExistence(timeout: 5) { firstVillage.tap() }
+        Thread.sleep(forTimeInterval: 0.5)
+        frames.append(screenshot())    // ✅ Valid
+        frames.append(screenshot())
+        frames.append(screenshot())    // hold 3×
+
+        saveFrames(frames, name: "validation-demo")
+    }
+
     // MARK: - Helpers
 
     private func waitForPicker() {
